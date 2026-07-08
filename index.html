@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>irisrea — 不動産価格データを、地図で読む</title>
+<meta name="description" content="公示地価・賃料・キャップレートの公開データを分析し、インタラクティブマップとして公開しています。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FBFBF9;
+    --ink:#1C1C1A;
+    --sub:#66665F;
+    --faint:#9B9B93;
+    --line:#E5E5DF;
+    --line-strong:#C9C9C1;
+    --accent:#C2620E;
+    --accent-deep:#8F4708;
+    --sans:"Zen Kaku Gothic New",-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:15px;
+    line-height:1.9;
+    font-feature-settings:"palt";
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;}
+  .wrap{max-width:860px;margin:0 auto;padding:0 24px;}
+
+  /* ---- header ---- */
+  .site-head{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:22px 0 0;
+  }
+  .site-head .mark{font-family:var(--mono);font-size:13px;letter-spacing:.04em;}
+  .site-head nav{font-family:var(--mono);font-size:12px;color:var(--sub);}
+  .site-head nav a{margin-left:20px;}
+  .site-head nav a:hover{color:var(--accent);}
+
+  /* ---- hero dot band ---- */
+  .band{display:block;width:100%;height:150px;margin-top:18px;}
+  .band .pt{opacity:0;animation:dotin .5s ease-out forwards;}
+  @keyframes dotin{to{opacity:1;}}
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto;}
+    .band .pt{animation:none;opacity:1;}
+  }
+  /* ---- hero text ---- */
+  .hero{padding:60px 0 76px;border-top:1px solid var(--line);margin-top:14px;}
+  h1{
+    font-size:clamp(34px,6.6vw,56px);
+    font-weight:700;line-height:1.2;letter-spacing:.04em;
+    margin-bottom:26px;
+  }
+  .h1-sub{
+    display:block;
+    font-family:var(--mono);font-size:13px;font-weight:400;
+    letter-spacing:.22em;color:var(--sub);
+    margin-top:16px;padding-left:3px;
+  }
+  .lead{color:var(--sub);max-width:34em;}
+
+  /* ---- works ---- */
+  .works{padding:64px 0 40px;border-top:1px solid var(--ink);}
+  .sec-label{
+    display:flex;justify-content:space-between;align-items:baseline;
+    margin-bottom:8px;
+  }
+  .sec-label h2{font-size:14px;font-weight:700;letter-spacing:.14em;}
+  .sec-label span{font-family:var(--mono);font-size:11px;color:var(--faint);}
+  .work{
+    display:grid;
+    grid-template-columns:44px 1fr;
+    gap:24px;align-items:start;
+    padding:30px 0;border-bottom:1px solid var(--line);
+  }
+  .work .no{
+    font-family:var(--mono);font-size:13px;color:var(--faint);
+    padding-top:4px;transition:color .25s;
+  }
+  .work .ttl{
+    display:inline-block;
+    font-size:18px;font-weight:700;letter-spacing:.02em;
+    transition:color .25s;
+  }
+  .work .ext{
+    display:inline-block;
+    font-size:13px;color:var(--faint);margin-left:6px;
+    transition:transform .25s ease,color .25s;
+  }
+  .work .desc{display:block;font-size:13.5px;color:var(--sub);margin-top:6px;max-width:36em;}
+  /* ホバー時：タイトル横にピンが落ちてくる */
+  .work .pin{
+    display:inline-block;width:13px;height:19px;
+    margin-left:10px;vertical-align:-3px;
+    opacity:0;transform:translateY(-12px);
+    transition:opacity .3s ease,transform .45s cubic-bezier(.34,1.56,.64,1);
+  }
+  .work:hover .no,
+  .work:hover .ttl{color:var(--accent);}
+  .work:hover .ext{transform:translate(3px,-3px);color:var(--accent);}
+  .work:hover .pin{opacity:1;transform:translateY(0);}
+  @media (prefers-reduced-motion:reduce){
+    .work .pin{transition:opacity .3s ease;transform:none;}
+    .work .ext{transition:color .25s;}
+    .work:hover .ext{transform:none;}
+  }
+
+  /* ---- about ---- */
+  .about{padding:64px 0;border-top:1px solid var(--line);}
+  .about-grid{display:grid;grid-template-columns:44px 1fr;gap:24px;}
+  .about h2{font-size:14px;font-weight:700;letter-spacing:.14em;margin-bottom:14px;}
+  .about p{color:var(--sub);font-size:14px;max-width:38em;}
+  .about .links{margin-top:22px;font-family:var(--mono);font-size:12.5px;}
+  .about .links a{color:var(--accent);margin-right:22px;}
+  .about .links a:hover{color:var(--accent-deep);text-decoration:underline;}
+
+  /* ---- footer ---- */
+  footer{
+    border-top:1px solid var(--line);
+    padding:26px 0 46px;
+    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:11px;color:var(--faint);
+  }
+
+  /* ---- mobile ---- */
+  @media (max-width:640px){
+    .work{grid-template-columns:32px 1fr;}
+    .about-grid{grid-template-columns:1fr;}
+    .band{height:110px;}
+    .site-head nav a{margin-left:14px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="site-head wrap">
+  <span class="mark">irisrea.github.io</span>
+  <nav aria-label="サイト内リンク">
+    <a href="#works">Works</a>
+    <a href="#about">About</a>
+  </nav>
+</header>
+
+<!--
+  点群バンド：ページ下部のスクリプトが DATA 配列から描画します。
+  実データに差し替える場合は DATA を [x(0-1), y(0-1), v(0-1)] の配列にするだけ。
+-->
+<div class="wrap">
+  <svg class="band" id="band" viewBox="0 0 1200 150" preserveAspectRatio="xMidYMid slice"
+       role="img" aria-label="架空の街の地図の上に散らばる地価データの点群イメージ">
+    <!-- 背景の架空街路図：濃さはこの opacity で調整 -->
+    <g id="citymap" opacity="0.8" fill="none" stroke="#E4E4D9" stroke-width="0.8">
+      <rect x="705" y="8" width="165" height="48" rx="3" fill="#F1F1E5" stroke="none"/>
+      <rect x="170" y="104" width="140" height="34" rx="3" fill="#F1F1E5" stroke="none"/>
+      <path d="M-20 14 L 1220 10"/><path d="M-20 62 L 1220 58"/>
+      <path d="M-20 120 L 1220 116"/><path d="M-20 140 L 1220 138"/>
+      <path d="M90 -10 L 96 160"/><path d="M240 -10 L 236 160"/><path d="M410 -10 L 416 160"/>
+      <path d="M600 -10 L 596 160"/><path d="M790 -10 L 796 160"/><path d="M950 -10 L 946 160"/>
+      <path d="M1130 -10 L 1136 160"/>
+      <path d="M40 160 C 80 100, 60 60, 100 -10"/>
+      <path d="M1180 -10 C 1150 60, 1190 110, 1160 160"/>
+      <g stroke="#D8D8CB" stroke-width="1.4">
+        <path d="M-20 38 L 1220 30"/>
+        <path d="M-20 96 C 300 100, 700 88, 1220 94"/>
+        <path d="M150 -10 L 158 160"/><path d="M330 -10 L 322 160"/><path d="M520 -10 L 526 160"/>
+        <path d="M700 -10 L 694 160"/><path d="M880 -10 L 886 160"/><path d="M1060 -10 L 1054 160"/>
+        <path d="M240 -10 L 560 160"/><path d="M1040 -10 L 760 160"/>
+      </g>
+      <!-- 鉄道：縞模様の線路と駅マーク -->
+      <g id="railway">
+        <path d="M-20 84 C 300 74, 700 66, 1220 58" stroke="#C6C6B8" stroke-width="3.2"/>
+        <path d="M-20 84 C 300 74, 700 66, 1220 58" stroke="#FBFBF9" stroke-width="1.8" stroke-dasharray="9 9"/>
+        <rect x="284" y="72" width="13" height="7" rx="1.5" fill="#FBFBF9" stroke="#B5B5A6" stroke-width="1.1"/>
+        <rect x="580" y="65.5" width="13" height="7" rx="1.5" fill="#FBFBF9" stroke="#B5B5A6" stroke-width="1.1"/>
+        <rect x="916" y="59" width="13" height="7" rx="1.5" fill="#FBFBF9" stroke="#B5B5A6" stroke-width="1.1"/>
+      </g>
+    </g>
+  </svg>
+</div>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>REAL ESTATE<br>DATA MAPS<span class="h1-sub">created by irisrea</span></h1>
+    <p class="lead">公示地価などの公開データを収集・分析し、誰でもブラウザで探索できるインタラクティブマップとして公開しています。</p>
+  </section>
+
+  <section class="works" id="works">
+    <div class="sec-label">
+      <h2>WORKS</h2>
+      <span>maps: 4</span>
+    </div>
+
+    <a class="work" href="https://irisrea.github.io/capratemap_irisrea/">
+      <span class="no">01</span>
+      <div>
+        <h3 class="ttl">REIT保有物件マップ</h3><svg class="pin" viewBox="-7 -20 14 20" aria-hidden="true"><path d="M0 0 C -3.5 -5.5, -6 -8.5, -6 -13 A 6 6 0 1 1 6 -13 C 6 -8.5, 3.5 -5.5, 0 0 Z" fill="#B26310"/><circle cx="0" cy="-13" r="2" fill="#FBFBF9"/></svg><span class="ext">↗</span>
+        <p class="desc">上場REITの保有物件をマッピングし、開示資料から取得した鑑定キャップレート等を見ることができるマップ。</p>
+      </div>
+    </a>
+
+    <a class="work" href="https://irisrea.github.io/rent_chikamap_2026/">
+      <span class="no">02</span>
+      <div>
+        <h3 class="ttl">賃料単価で見る地価公示 2026</h3><svg class="pin" viewBox="-7 -20 14 20" aria-hidden="true"><path d="M0 0 C -3.5 -5.5, -6 -8.5, -6 -13 A 6 6 0 1 1 6 -13 C 6 -8.5, 3.5 -5.5, 0 0 Z" fill="#B26310"/><circle cx="0" cy="-13" r="2" fill="#FBFBF9"/></svg><span class="ext">↗</span>
+        <p class="desc">地価公示で用いられる土地残余法にて査定された想定建物の賃料単価等を見ることができるマップ。</p>
+      </div>
+    </a>
+
+    <a class="work" href="https://irisrea.github.io/landcaprate_map_2026/">
+      <span class="no">03</span>
+      <div>
+        <h3 class="ttl">利回りで見る地価公示 2026</h3><svg class="pin" viewBox="-7 -20 14 20" aria-hidden="true"><path d="M0 0 C -3.5 -5.5, -6 -8.5, -6 -13 A 6 6 0 1 1 6 -13 C 6 -8.5, 3.5 -5.5, 0 0 Z" fill="#B26310"/><circle cx="0" cy="-13" r="2" fill="#FBFBF9"/></svg><span class="ext">↗</span>
+        <p class="desc">地価公示で用いられる土地残余法にて査定された土地の還元利回り等を見ることができるマップ。</p>
+      </div>
+    </a>
+
+    <a class="work" href="https://irisrea.github.io/read_chikamap_2026/">
+      <span class="no">04</span>
+      <div>
+        <h3 class="ttl">読む地価公示 2026</h3><svg class="pin" viewBox="-7 -20 14 20" aria-hidden="true"><path d="M0 0 C -3.5 -5.5, -6 -8.5, -6 -13 A 6 6 0 1 1 6 -13 C 6 -8.5, 3.5 -5.5, 0 0 Z" fill="#B26310"/><circle cx="0" cy="-13" r="2" fill="#FBFBF9"/></svg><span class="ext">↗</span>
+        <p class="desc">地価公示の対象地点における市場の動向等を読むことができるマップ。</p>
+      </div>
+    </a>
+  </section>
+
+  <section class="about" id="about">
+    <div class="about-grid">
+      <span></span>
+      <div>
+        <h2>ABOUT</h2>
+        <p>不動産価格や利回り情報の分析を行っています。公開データの収集・整形から分析、マップとしての公開までを個人で制作。本業は不動産鑑定士。</p>
+        <p class="links">
+          <a href="#">X ↗</a>
+          <a href="https://note.com/irisrea">note ↗</a>
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <span>© <span id="year">2026</span> irisrea</span>
+  <span>map tiles: © OpenStreetMap contributors ほか、各マップに出典を記載</span>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* 実データに差し替える場合はここを書き換え：
+     DATA = [[x, y, v], ...]  x,y = 0〜1 の位置, v = 0〜1 の価格水準 */
+  var DATA = null;
+
+  /* シード固定の擬似乱数（リロードしても同じ配置） */
+  function mulberry32(a){
+    return function(){
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  /* ベースの点群：薄め・小さめに抑えて駅前クラスタを引き立てる */
+  function generate(){
+    var rnd = mulberry32(20260708), pts = [], i;
+    for(i = 0; i < 95; i++){
+      var x = 0.02 + rnd()*0.96;
+      var y = 0.08 + rnd()*0.84;
+      var v = Math.pow(rnd(), 1.8) * 0.75;
+      pts.push([x, y, v]);
+    }
+    return pts;
+  }
+
+  /* 駅前クラスタ：各駅の周囲に高価格点（マップピン）を5個ずつ */
+  var STATIONS = [[290.5, 75.5], [586.5, 69], [922.5, 62.5]]; /* px座標（viewBox基準） */
+  function clusters(){
+    var rnd = mulberry32(777), pts = [];
+    STATIONS.forEach(function(s){
+      for(var i = 0; i < 5; i++){
+        var a = rnd()*6.283, d = 9 + rnd()*26;
+        pts.push([s[0] + Math.cos(a)*d, s[1] + Math.sin(a)*d*0.75, 0.8 + rnd()*0.2]);
+      }
+    });
+    return pts;
+  }
+
+  var RAMP = ["#F8DCB0","#F5C077","#EE9F33","#D97F16","#B26310","#8A4B0B"];
+  var DEEP = ["#B26310","#96590F","#8A4B0B"];
+  var PIN_D = "M0 0 C -3.5 -5.5, -6 -8.5, -6 -13 A 6 6 0 1 1 6 -13 C 6 -8.5, 3.5 -5.5, 0 0 Z";
+  var NS = "http://www.w3.org/2000/svg";
+
+  function addCircle(svg, x, y, v, delay){
+    var c = document.createElementNS(NS, "circle");
+    c.setAttribute("class", "pt");
+    c.setAttribute("cx", x.toFixed(1));
+    c.setAttribute("cy", y.toFixed(1));
+    c.setAttribute("r", (1.4 + v*4.2).toFixed(1));
+    c.setAttribute("fill", RAMP[Math.min(RAMP.length-1, Math.floor(v*RAMP.length))]);
+    c.style.animationDelay = delay + "ms";
+    svg.appendChild(c);
+  }
+
+  function addPin(svg, x, y, v, delay){
+    var s = 0.42 + v*0.38; /* ピンの縮尺 */
+    var p = document.createElementNS(NS, "path");
+    p.setAttribute("class", "pt");
+    p.setAttribute("d", PIN_D);
+    p.setAttribute("fill", DEEP[Math.floor(v*10) % DEEP.length]);
+    p.setAttribute("transform", "translate(" + x.toFixed(1) + " " + y.toFixed(1) + ") scale(" + s.toFixed(2) + ")");
+    p.style.animationDelay = delay + "ms";
+    svg.appendChild(p);
+    var hole = document.createElementNS(NS, "circle"); /* ピンの白抜き */
+    hole.setAttribute("class", "pt");
+    hole.setAttribute("cx", x.toFixed(1));
+    hole.setAttribute("cy", (y - 13*s).toFixed(1));
+    hole.setAttribute("r", (2*s).toFixed(1));
+    hole.setAttribute("fill", "#FBFBF9");
+    hole.style.animationDelay = delay + "ms";
+    svg.appendChild(hole);
+  }
+
+  function draw(){
+    var svg = document.getElementById("band");
+    if(!svg) return;
+    var W = 1200, H = 150, i = 0;
+    (DATA || generate()).forEach(function(p){
+      addCircle(svg, p[0]*W, p[1]*H, p[2], (i++)*12);
+    });
+    clusters().forEach(function(p){
+      addPin(svg, p[0], p[1], p[2], (i++)*12);
+    });
+  }
+
+  draw();
+  document.getElementById("year").textContent = new Date().getFullYear();
+})();
+</script>
+</body>
+</html>
